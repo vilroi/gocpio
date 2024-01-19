@@ -4,13 +4,14 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"strconv"
 	"syscall"
 
 	unsafe "unsafe"
 )
 
 const (
-	magicval string = "07070100"
+	magicval string = "070701"
 )
 
 type CpioMember struct {
@@ -32,7 +33,7 @@ type CpioHeader struct {
 	RDevMajor uint64
 	RDevMinor uint64
 	NameSize  uint64
-	Check     uint64
+	//Check     uint64
 }
 
 func (header CpioHeader) VerifyMagic() bool {
@@ -40,7 +41,7 @@ func (header CpioHeader) VerifyMagic() bool {
 }
 
 type RawCpioHeader struct {
-	Magic     [8]byte
+	Magic     [6]byte
 	Inode     [8]byte
 	Mode      [8]byte
 	Uid       [8]byte
@@ -53,26 +54,28 @@ type RawCpioHeader struct {
 	RDevMajor [8]byte
 	RDevMinor [8]byte
 	NameSize  [8]byte
-	Check     [8]byte
+	_         [8]byte
+	//Check     [8]byte
 }
 
 func (rawheader RawCpioHeader) ToCpioHeader() CpioHeader {
 	var cpioheader CpioHeader
 
 	cpioheader.Magic = string(rawheader.Magic[:])
-	cpioheader.Inode = binary.LittleEndian.Uint64(rawheader.Inode[:])
-	cpioheader.Mode = binary.LittleEndian.Uint64(rawheader.Mode[:])
-	cpioheader.Uid = binary.LittleEndian.Uint64(rawheader.Uid[:])
-	cpioheader.Gid = binary.LittleEndian.Uint64(rawheader.Gid[:])
-	cpioheader.Nlink = binary.LittleEndian.Uint64(rawheader.Nlink[:])
-	cpioheader.Mtime = binary.LittleEndian.Uint64(rawheader.Mtime[:])
-	cpioheader.FileSize = binary.LittleEndian.Uint64(rawheader.FileSize[:])
-	cpioheader.DevMajor = binary.LittleEndian.Uint64(rawheader.DevMajor[:])
-	cpioheader.DevMinor = binary.LittleEndian.Uint64(rawheader.DevMinor[:])
-	cpioheader.RDevMajor = binary.LittleEndian.Uint64(rawheader.RDevMajor[:])
-	cpioheader.RDevMinor = binary.LittleEndian.Uint64(rawheader.RDevMinor[:])
-	cpioheader.NameSize = binary.LittleEndian.Uint64(rawheader.NameSize[:])
-	cpioheader.Check = binary.LittleEndian.Uint64(rawheader.Check[:])
+	//cpioheader.Inode = binary.LittleEndian.Uint64(rawheader.Inode[:])
+	cpioheader.Inode = byteArrayToInt(rawheader.Inode[:])
+	cpioheader.Mode = byteArrayToInt(rawheader.Mode[:])
+	cpioheader.Uid = byteArrayToInt(rawheader.Uid[:])
+	cpioheader.Gid = byteArrayToInt(rawheader.Gid[:])
+	cpioheader.Nlink = byteArrayToInt(rawheader.Nlink[:])
+	cpioheader.Mtime = byteArrayToInt(rawheader.Mtime[:])
+	cpioheader.FileSize = byteArrayToInt(rawheader.FileSize[:])
+	cpioheader.DevMajor = byteArrayToInt(rawheader.DevMajor[:])
+	cpioheader.DevMinor = byteArrayToInt(rawheader.DevMinor[:])
+	cpioheader.RDevMajor = byteArrayToInt(rawheader.RDevMajor[:])
+	cpioheader.RDevMinor = byteArrayToInt(rawheader.RDevMinor[:])
+	cpioheader.NameSize = byteArrayToInt(rawheader.NameSize[:])
+	//cpioheader.Check = byteArrayToInt(rawheader.Check[:])
 
 	return cpioheader
 }
@@ -103,24 +106,29 @@ func main() {
 		check(err)
 		nread += int(unsafe.Sizeof(raw_header))
 
+		_, err := fd.Seek(int64(nread), os.SEEK_CUR)
+		check(err)
+
 		header := raw_header.ToCpioHeader()
 		if !header.VerifyMagic() {
 			fmt.Fprintf(os.Stderr, "invalid magc number: %s\n", string(raw_header.Magic[:]))
 			os.Exit(1)
 		}
 
-		//	namebuf := make([]byte, raw_header.NameSize
+		namebuf := make([]byte, header.NameSize)
+		err = binary.Read(fd, binary.LittleEndian, namebuf)
+		check(err)
+
+		/*
+			_, err = fd.Seek(int64(header.NameSize), os.SEEK_CUR)
+			check(err)
+			nread += int(header.NameSize)
+		*/
+
+		fmt.Printf("%+v\n", header)
+		fmt.Printf("%+v\n", string(namebuf[:]))
 		break
 	}
-
-	/*
-		var header CpioHeader
-		binary.Read(fd, binary.LittleEndian, &header)
-
-		if header.VerifyMagic() == false {
-			fmt.Println("not valid cpio header")
-		}
-	*/
 }
 
 func mmap(path string) []byte {
@@ -141,4 +149,11 @@ func check(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func byteArrayToInt(bytes []byte) uint64 {
+	s := string(bytes[:])
+	i, err := strconv.ParseUint(s, 16, 64)
+	check(err)
+	return i
 }
