@@ -52,6 +52,7 @@ type RawCpioHeader struct {
 	RDevMinor [8]byte
 	NameSize  [8]byte
 	_         [8]byte
+
 	//Check     [8]byte
 }
 
@@ -107,16 +108,21 @@ func main() {
 		namebuf := make([]byte, header.NameSize)
 		nread += br.Read(namebuf)
 
-		data := make([]byte, header.FileSize)
-		if cap(data) == 0 {
-			data = data[:cap(data)+1]
-		}
-		n := br.Read(data)
-		fmt.Println("nread: ", n)
-		nread += n
-
 		fmt.Printf("%+v\n", header)
+		fmt.Printf("%+v\n", namebuf)
 		fmt.Printf("%+v\n", string(namebuf[:]))
+
+		data := make([]byte, header.FileSize)
+		nread += br.Read(data)
+
+		tmp := make([]byte, 1)
+		for {
+			nread += br.Read(tmp)
+			if tmp[0] != '\x00' {
+				fmt.Println(tmp[0])
+				break
+			}
+		}
 	}
 }
 

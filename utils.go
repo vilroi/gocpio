@@ -2,10 +2,10 @@ package main
 
 import (
 	"encoding/binary"
+	"fmt"
 	"os"
 	"reflect"
 	"strconv"
-	unsafe "unsafe"
 )
 
 type BinaryReader struct {
@@ -26,13 +26,13 @@ func newBinaryReader(path string, byteorder binary.ByteOrder) BinaryReader {
 /*
 @buf: the caller is responsible for passing a reference to the buffer
 */
-func (binreader BinaryReader) Read(buf any) int {
+func (binreader *BinaryReader) Read(buf any) int {
 	err := binary.Read(binreader.fd, binreader.byteorder, buf)
 	check(err)
 
-	//nread := int64(unsafe.Sizeof(buf))
 	nread := int64(sizeof(buf))
-	binreader.fd.Seek(nread, os.SEEK_CUR)
+	_, err = binreader.fd.Seek(nread, os.SEEK_CUR)
+	check(err)
 
 	return int(nread)
 }
@@ -42,6 +42,11 @@ func (binreader BinaryReader) Stat() os.FileInfo {
 	check(err)
 
 	return info
+}
+
+func (binreader *BinaryReader) Skip(n int64) {
+	_, err := binreader.fd.Seek(n, os.SEEK_CUR)
+	check(err)
 }
 
 func check(err error) {
@@ -57,12 +62,17 @@ func byteArrayToInt(bytes []byte) uint64 {
 	return i
 }
 
-func sizeof(x any) int {
-	switch reflect.TypeOf(x).Kind() {
+func sizeof(data any) int {
+	val := reflect.ValueOf(data)
+	switch reflect.TypeOf(data).Kind() {
 	case reflect.Slice:
-		slice := reflect.ValueOf(x)
-		return slice.Len()
+		return val.Len()
+	case reflect.Pointer:
+		return int(reflect.Indirect(val).Type().Size())
 	default:
-		return int(unsafe.Sizeof(x))
+		fmt.Println("type not implemented:", reflect.TypeOf(data).Kind())
+		os.Exit(1)
 	}
+
+	return 0
 }
