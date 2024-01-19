@@ -12,6 +12,7 @@ const (
 
 type CpioMember struct {
 	header CpioHeader
+	name   string
 	data   []byte
 }
 
