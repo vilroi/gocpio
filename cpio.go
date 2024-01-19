@@ -107,6 +107,14 @@ func main() {
 		namebuf := make([]byte, header.NameSize)
 		nread += br.Read(namebuf)
 
+		data := make([]byte, header.FileSize)
+		if cap(data) == 0 {
+			data = data[:cap(data)+1]
+		}
+		n := br.Read(data)
+		fmt.Println("nread: ", n)
+		nread += n
+
 		fmt.Printf("%+v\n", header)
 		fmt.Printf("%+v\n", string(namebuf[:]))
 	}

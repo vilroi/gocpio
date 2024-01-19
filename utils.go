@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/binary"
 	"os"
+	"reflect"
 	"strconv"
 	unsafe "unsafe"
 )
@@ -29,7 +30,8 @@ func (binreader BinaryReader) Read(buf any) int {
 	err := binary.Read(binreader.fd, binreader.byteorder, buf)
 	check(err)
 
-	nread := int64(unsafe.Sizeof(buf))
+	//nread := int64(unsafe.Sizeof(buf))
+	nread := int64(sizeof(buf))
 	binreader.fd.Seek(nread, os.SEEK_CUR)
 
 	return int(nread)
@@ -53,4 +55,14 @@ func byteArrayToInt(bytes []byte) uint64 {
 	i, err := strconv.ParseUint(s, 16, 64)
 	check(err)
 	return i
+}
+
+func sizeof(x any) int {
+	switch reflect.TypeOf(x).Kind() {
+	case reflect.Slice:
+		slice := reflect.ValueOf(x)
+		return slice.Len()
+	default:
+		return int(unsafe.Sizeof(x))
+	}
 }
