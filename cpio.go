@@ -99,22 +99,15 @@ func main() {
 
 		header := raw_header.ToCpioHeader()
 		if !header.VerifyMagic() {
-			fmt.Fprintf(os.Stderr, "invalid magc number: %s\n", string(raw_header.Magic[:]))
+			fmt.Fprintf(os.Stderr, "invalid magic number: %s\n", string(raw_header.Magic[:]))
 			os.Exit(1)
 		}
 
 		namebuf := make([]byte, header.NameSize)
 		nread += br.Read(namebuf)
 
-		/*
-			_, err = fd.Seek(int64(header.NameSize), os.SEEK_CUR)
-			check(err)
-			nread += int(header.NameSize)
-		*/
-
 		fmt.Printf("%+v\n", header)
 		fmt.Printf("%+v\n", string(namebuf[:]))
-		break
 	}
 }
 
