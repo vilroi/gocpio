@@ -4,10 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
-	"strconv"
-	"syscall"
-
-	unsafe "unsafe"
 )
 
 const (
@@ -94,20 +90,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	fd, err := os.Open(os.Args[1])
-	check(err)
-
-	info, err := fd.Stat()
-	check(err)
+	br := newBinaryReader(os.Args[1], binary.LittleEndian)
+	info := br.Stat()
 
 	for nread := 0; nread < int(info.Size()); {
 		var raw_header RawCpioHeader
-		err = binary.Read(fd, binary.LittleEndian, &raw_header)
-		check(err)
-		nread += int(unsafe.Sizeof(raw_header))
-
-		_, err := fd.Seek(int64(nread), os.SEEK_CUR)
-		check(err)
+		nread += br.Read(&raw_header)
 
 		header := raw_header.ToCpioHeader()
 		if !header.VerifyMagic() {
@@ -116,8 +104,7 @@ func main() {
 		}
 
 		namebuf := make([]byte, header.NameSize)
-		err = binary.Read(fd, binary.LittleEndian, namebuf)
-		check(err)
+		nread += br.Read(namebuf)
 
 		/*
 			_, err = fd.Seek(int64(header.NameSize), os.SEEK_CUR)
@@ -131,6 +118,7 @@ func main() {
 	}
 }
 
+/*
 func mmap(path string) []byte {
 	fd, err := syscall.Open(os.Args[1], syscall.O_RDONLY, 0)
 	check(err)
@@ -144,16 +132,4 @@ func mmap(path string) []byte {
 
 	return bytes
 }
-
-func check(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
-func byteArrayToInt(bytes []byte) uint64 {
-	s := string(bytes[:])
-	i, err := strconv.ParseUint(s, 16, 64)
-	check(err)
-	return i
-}
+*/
