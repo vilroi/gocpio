@@ -43,7 +43,18 @@ func (binreader BinaryReader) Stat() os.FileInfo {
 	return info
 }
 
-func (binreader *BinaryReader) Skip(n int64) {
+func (binreader *BinaryReader) Skip(c byte) {
+	tmp := make([]byte, 1)
+	for {
+		binreader.Read(tmp)
+		if tmp[0] != 0 {
+			binreader.SeekCur(-1)
+			break
+		}
+	}
+}
+
+func (binreader *BinaryReader) SeekCur(n int64) {
 	_, err := binreader.fd.Seek(n, os.SEEK_CUR)
 	check(err)
 }

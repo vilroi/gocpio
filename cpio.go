@@ -111,31 +111,14 @@ func main() {
 		if string(namebuf[:]) == "TRAILER!!!" {
 			break
 		}
-
-		tmp := make([]byte, 1)
-		for {
-			br.Read(tmp)
-			if tmp[0] != 0 {
-				br.Skip(-1)
-				break
-			}
-		}
-		//br.Skip(1)
+		br.Skip(0)
 
 		if header.FileSize != 0 {
 			data := make([]byte, header.FileSize)
 			nread += br.Read(data)
 		}
+		br.Skip(0)
 
-		tmp = make([]byte, 1)
-		for {
-			br.Read(tmp)
-			//fmt.Println(tmp)
-			if tmp[0] != 0 {
-				br.Skip(-1)
-				break
-			}
-		}
 	}
 }
 
