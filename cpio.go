@@ -1,4 +1,4 @@
-package main
+package gocpio
 
 import (
 	"encoding/binary"
@@ -16,7 +16,7 @@ type Cpio struct {
 	members []CpioMember
 }
 
-func (cpio Cpio) listFiles() {
+func (cpio Cpio) ListFiles() {
 	for _, member := range cpio.members {
 		fmt.Println(member.name)
 	}
@@ -26,7 +26,7 @@ func (cpio *Cpio) Append(newmember CpioMember) {
 	cpio.members = append(cpio.members, newmember)
 }
 
-func (cpio Cpio) extractFile(name string) {
+func (cpio Cpio) ExtractFile(name string) {
 	var subset []CpioMember
 
 	for _, member := range cpio.members {
@@ -91,7 +91,7 @@ type CpioHeader struct {
 	NameSize  uint64
 }
 
-func (header CpioHeader) VerifyMagic() bool {
+func (header CpioHeader) verifyMagic() bool {
 	return header.Magic == magicval
 }
 
@@ -140,19 +140,7 @@ func (rawheader RawCpioHeader) Dump() {
 	fmt.Printf("NameSize: %s\n", string(rawheader.NameSize[:]))
 }
 
-func main() {
-	if len(os.Args) != 2 {
-		fmt.Fprintf(os.Stderr, "usage: %s cpio-file\n", os.Args[0])
-		os.Exit(1)
-	}
-
-	cpio := parseCpio(os.Args[1])
-	cpio.listFiles()
-	cpio.extractFile("munch.c")
-
-}
-
-func parseCpio(path string) Cpio {
+func ParseCpio(path string) Cpio {
 	br := newBinaryReader(path, binary.LittleEndian)
 	info := br.Stat()
 
@@ -164,7 +152,7 @@ func parseCpio(path string) Cpio {
 		nread += br.Read(&raw_header)
 
 		header := raw_header.ToCpioHeader()
-		if !header.VerifyMagic() {
+		if !header.verifyMagic() {
 			fmt.Fprintf(os.Stderr, "invalid magic number: %s\n", string(raw_header.Magic[:]))
 			os.Exit(1)
 		}

@@ -1,10 +1,10 @@
 all: check build
 
 check: 
-	go vet ./
+	go vet ./...
 
 build:
-	go build -o gocpio *.go
+	go build -o gocpio cmd/*.go
 
 test: all
 	./gocpio initram*

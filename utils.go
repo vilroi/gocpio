@@ -1,4 +1,4 @@
-package main
+package gocpio
 
 import (
 	"encoding/binary"
