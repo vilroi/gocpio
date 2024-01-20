@@ -7,7 +7,7 @@ build:
 	go build -o gocpio *.go
 
 test: all
-	./gocpio initrd*
+	./gocpio initram*
 
 clean:
 	rm gocpio

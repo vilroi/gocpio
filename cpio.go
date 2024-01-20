@@ -51,9 +51,7 @@ type RawCpioHeader struct {
 	RDevMajor [8]byte
 	RDevMinor [8]byte
 	NameSize  [8]byte
-	_         [8]byte
-
-	//Check     [8]byte
+	Check     [8]byte
 }
 
 func (rawheader RawCpioHeader) ToCpioHeader() CpioHeader {
@@ -98,28 +96,43 @@ func main() {
 	for nread := 0; nread < int(info.Size()); {
 		var raw_header RawCpioHeader
 		nread += br.Read(&raw_header)
+		//fmt.Printf("%+v\n", raw_header)
 
 		header := raw_header.ToCpioHeader()
 		if !header.VerifyMagic() {
 			fmt.Fprintf(os.Stderr, "invalid magic number: %s\n", string(raw_header.Magic[:]))
+			fmt.Printf("%+v\n", header)
 			os.Exit(1)
 		}
 
-		namebuf := make([]byte, header.NameSize)
+		namebuf := make([]byte, header.NameSize-1)
 		nread += br.Read(namebuf)
-
-		fmt.Printf("%+v\n", header)
-		fmt.Printf("%+v\n", namebuf)
-		fmt.Printf("%+v\n", string(namebuf[:]))
-
-		data := make([]byte, header.FileSize)
-		nread += br.Read(data)
+		fmt.Println(string(namebuf[:]))
+		if string(namebuf[:]) == "TRAILER!!!" {
+			break
+		}
 
 		tmp := make([]byte, 1)
 		for {
-			nread += br.Read(tmp)
-			if tmp[0] != '\x00' {
-				fmt.Println(tmp[0])
+			br.Read(tmp)
+			if tmp[0] != 0 {
+				br.Skip(-1)
+				break
+			}
+		}
+		//br.Skip(1)
+
+		if header.FileSize != 0 {
+			data := make([]byte, header.FileSize)
+			nread += br.Read(data)
+		}
+
+		tmp = make([]byte, 1)
+		for {
+			br.Read(tmp)
+			//fmt.Println(tmp)
+			if tmp[0] != 0 {
+				br.Skip(-1)
 				break
 			}
 		}

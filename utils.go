@@ -31,7 +31,6 @@ func (binreader *BinaryReader) Read(buf any) int {
 	check(err)
 
 	nread := int64(sizeof(buf))
-	_, err = binreader.fd.Seek(nread, os.SEEK_CUR)
 	check(err)
 
 	return int(nread)

@@ -1,3 +1,4 @@
 initrd*
 gocpio
 .*.swp
+*.cpio
