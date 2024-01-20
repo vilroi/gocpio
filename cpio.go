@@ -10,6 +10,7 @@ import (
 
 const (
 	magicval string = "070701"
+	trailer  string = "TRAILER!!!"
 )
 
 type Cpio struct {
@@ -18,6 +19,10 @@ type Cpio struct {
 
 func (cpio Cpio) ListFiles() {
 	for _, member := range cpio.members {
+		if member.name == trailer {
+			break
+		}
+
 		fmt.Println(member.name)
 	}
 }
@@ -90,12 +95,6 @@ type CpioHeader struct {
 	NameSize  uint64
 }
 
-/*
-func (header CpioHeader) verifyMagic() bool {
-	return header.Magic == magicval
-}
-*/
-
 type RawCpioHeader struct {
 	Magic     [6]byte
 	Inode     [8]byte
@@ -159,7 +158,7 @@ func ParseCpio(path string) Cpio {
 		nread += br.Read(namebuf)
 		cpio_member.name = string(namebuf[:])
 
-		if cpio_member.name == "TRAILER!!!" {
+		if cpio_member.name == trailer {
 			cpio.Append(cpio_member)
 			break
 		}
