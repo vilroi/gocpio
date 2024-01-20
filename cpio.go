@@ -58,7 +58,6 @@ func (rawheader RawCpioHeader) ToCpioHeader() CpioHeader {
 	var cpioheader CpioHeader
 
 	cpioheader.Magic = string(rawheader.Magic[:])
-	//cpioheader.Inode = binary.LittleEndian.Uint64(rawheader.Inode[:])
 	cpioheader.Inode = byteArrayToInt(rawheader.Inode[:])
 	cpioheader.Mode = byteArrayToInt(rawheader.Mode[:])
 	cpioheader.Uid = byteArrayToInt(rawheader.Uid[:])
@@ -71,7 +70,6 @@ func (rawheader RawCpioHeader) ToCpioHeader() CpioHeader {
 	cpioheader.RDevMajor = byteArrayToInt(rawheader.RDevMajor[:])
 	cpioheader.RDevMinor = byteArrayToInt(rawheader.RDevMinor[:])
 	cpioheader.NameSize = byteArrayToInt(rawheader.NameSize[:])
-	//cpioheader.Check = byteArrayToInt(rawheader.Check[:])
 
 	return cpioheader
 }
@@ -90,50 +88,48 @@ func main() {
 		os.Exit(1)
 	}
 
-	br := newBinaryReader(os.Args[1], binary.LittleEndian)
+	cpio := parseCpio(os.Args[1])
+	for _, member := range cpio {
+		fmt.Println(member.name)
+	}
+}
+
+func parseCpio(path string) []CpioMember {
+	br := newBinaryReader(path, binary.LittleEndian)
 	info := br.Stat()
 
+	var cpio []CpioMember
 	for nread := 0; nread < int(info.Size()); {
+		var cpio_member CpioMember
+
 		var raw_header RawCpioHeader
 		nread += br.Read(&raw_header)
-		//fmt.Printf("%+v\n", raw_header)
 
 		header := raw_header.ToCpioHeader()
 		if !header.VerifyMagic() {
 			fmt.Fprintf(os.Stderr, "invalid magic number: %s\n", string(raw_header.Magic[:]))
-			fmt.Printf("%+v\n", header)
 			os.Exit(1)
 		}
+		cpio_member.header = header
 
 		namebuf := make([]byte, header.NameSize-1)
 		nread += br.Read(namebuf)
-		fmt.Println(string(namebuf[:]))
-		if string(namebuf[:]) == "TRAILER!!!" {
+		cpio_member.name = string(namebuf[:])
+
+		if cpio_member.name == "TRAILER!!!" {
+			cpio = append(cpio, cpio_member)
 			break
 		}
 		br.Skip(0)
 
 		if header.FileSize != 0 {
-			data := make([]byte, header.FileSize)
-			nread += br.Read(data)
+			cpio_member.data = make([]byte, header.FileSize)
+			nread += br.Read(cpio_member.data)
 		}
 		br.Skip(0)
 
+		cpio = append(cpio, cpio_member)
 	}
+
+	return cpio
 }
-
-/*
-func mmap(path string) []byte {
-	fd, err := syscall.Open(os.Args[1], syscall.O_RDONLY, 0)
-	check(err)
-
-	var statbuf syscall.Stat_t
-	err = syscall.Fstat(fd, &statbuf)
-	check(err)
-
-	bytes, err := syscall.Mmap(fd, 0, int(statbuf.Size), syscall.PROT_READ, syscall.MAP_ANONYMOUS|syscall.MAP_PRIVATE)
-	check(err)
-
-	return bytes
-}
-*/
