@@ -2,3 +2,4 @@ initrd*
 gocpio
 .*.swp
 *.cpio
+*.out

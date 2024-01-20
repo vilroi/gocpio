@@ -4,16 +4,75 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 const (
 	magicval string = "070701"
 )
 
+type Cpio struct {
+	members []CpioMember
+}
+
+func (cpio Cpio) listFiles() {
+	for _, member := range cpio.members {
+		fmt.Println(member.name)
+	}
+}
+
+func (cpio *Cpio) Append(newmember CpioMember) {
+	cpio.members = append(cpio.members, newmember)
+}
+
+func (cpio Cpio) extractFile(name string) {
+	var subset []CpioMember
+
+	for _, member := range cpio.members {
+
+		if strings.Contains(member.name, name) {
+			if member.name == name {
+				// found! Save data to disk and return.
+				member.Dump()
+				return
+			}
+			subset = append(subset, member)
+		}
+	}
+
+	if len(subset) == 0 {
+		fmt.Fprintf(os.Stderr, "file '%s' not found\n", name)
+		os.Exit(1)
+	}
+
+	for _, member := range subset {
+		member.Dump()
+	}
+
+}
+
 type CpioMember struct {
 	header CpioHeader
 	name   string
 	data   []byte
+}
+
+/*
+TODO: as for now, dump the file in current directory
+I will later implement the creation of relative file path
+
+Also, for now I shall ignore the file perms
+*/
+func (cpiomember CpioMember) Dump() {
+	//path := filepath.Dir(cpiomember.name)
+	filename := filepath.Base(cpiomember.name)
+
+	fd, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0755)
+	check(err)
+
+	_, err = fd.Write(cpiomember.data)
+	check(err)
 }
 
 type CpioHeader struct {
@@ -30,7 +89,6 @@ type CpioHeader struct {
 	RDevMajor uint64
 	RDevMinor uint64
 	NameSize  uint64
-	//Check     uint64
 }
 
 func (header CpioHeader) VerifyMagic() bool {
@@ -89,16 +147,16 @@ func main() {
 	}
 
 	cpio := parseCpio(os.Args[1])
-	for _, member := range cpio {
-		fmt.Println(member.name)
-	}
+	cpio.listFiles()
+	cpio.extractFile("munch.c")
+
 }
 
-func parseCpio(path string) []CpioMember {
+func parseCpio(path string) Cpio {
 	br := newBinaryReader(path, binary.LittleEndian)
 	info := br.Stat()
 
-	var cpio []CpioMember
+	var cpio Cpio
 	for nread := 0; nread < int(info.Size()); {
 		var cpio_member CpioMember
 
@@ -117,7 +175,7 @@ func parseCpio(path string) []CpioMember {
 		cpio_member.name = string(namebuf[:])
 
 		if cpio_member.name == "TRAILER!!!" {
-			cpio = append(cpio, cpio_member)
+			cpio.Append(cpio_member)
 			break
 		}
 		br.Skip(0)
@@ -128,7 +186,7 @@ func parseCpio(path string) []CpioMember {
 		}
 		br.Skip(0)
 
-		cpio = append(cpio, cpio_member)
+		cpio.Append(cpio_member)
 	}
 
 	return cpio
