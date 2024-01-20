@@ -58,17 +58,16 @@ type CpioMember struct {
 	data   []byte
 }
 
-/*
-TODO: as for now, dump the file in current directory
-I will later implement the creation of relative file path
-
-Also, for now I shall ignore the file perms
-*/
 func (cpiomember CpioMember) Dump() {
-	//path := filepath.Dir(cpiomember.name)
-	filename := filepath.Base(cpiomember.name)
+	fpath := cpiomember.name
+	if path := filepath.Dir(fpath); path != "." {
+		err := os.MkdirAll(path, 0755)
+		check(err)
 
-	fd, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0755)
+		fpath = "./" + fpath
+	}
+
+	fd, err := os.OpenFile(fpath, os.O_RDWR|os.O_CREATE, 0644)
 	check(err)
 
 	_, err = fd.Write(cpiomember.data)
@@ -91,9 +90,11 @@ type CpioHeader struct {
 	NameSize  uint64
 }
 
+/*
 func (header CpioHeader) verifyMagic() bool {
 	return header.Magic == magicval
 }
+*/
 
 type RawCpioHeader struct {
 	Magic     [6]byte
@@ -132,12 +133,8 @@ func (rawheader RawCpioHeader) ToCpioHeader() CpioHeader {
 	return cpioheader
 }
 
-func (rawheader RawCpioHeader) Dump() {
-	fmt.Printf("Magic: %s\n", string(rawheader.Magic[:]))
-	fmt.Printf("Inode: %s\n", string(rawheader.Inode[:]))
-	fmt.Printf("Mode: %s\n", string(rawheader.Mode[:]))
-	fmt.Printf("Uid: %s\n", string(rawheader.Uid[:]))
-	fmt.Printf("NameSize: %s\n", string(rawheader.NameSize[:]))
+func (rawheader RawCpioHeader) verifyMagic() bool {
+	return string(rawheader.Magic[:]) == magicval
 }
 
 func ParseCpio(path string) Cpio {
@@ -150,12 +147,12 @@ func ParseCpio(path string) Cpio {
 
 		var raw_header RawCpioHeader
 		nread += br.Read(&raw_header)
-
-		header := raw_header.ToCpioHeader()
-		if !header.verifyMagic() {
-			fmt.Fprintf(os.Stderr, "invalid magic number: %s\n", string(raw_header.Magic[:]))
+		if !raw_header.verifyMagic() {
+			fmt.Fprintf(os.Stderr, "invalid file format or magic number: %s\n", string(raw_header.Magic[:]))
 			os.Exit(1)
 		}
+
+		header := raw_header.ToCpioHeader()
 		cpio_member.header = header
 
 		namebuf := make([]byte, header.NameSize-1)
