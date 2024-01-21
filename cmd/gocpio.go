@@ -8,26 +8,47 @@ import (
 	"github.com/vilroi/gocpio"
 )
 
+type CpioArgs struct {
+	cpiofile string
+	files    []string
+}
+
 var listFlag bool
 
 func main() {
-	flag.Parse()
-	args := flag.Args()
-	if len(args) < 1 {
-		flag.Usage()
-		os.Exit(1)
-	}
-	cpio := gocpio.ParseCpio(args[0])
+	args := parseArgs()
+	cpio := gocpio.ParseCpio(args.cpiofile)
 
 	if listFlag {
 		cpio.ListFiles()
 		os.Exit(0)
 	}
 
-	if len(args[1:]) != 0 {
-		for _, file := range args[1:] {
-			cpio.ExtractFile(file)
-		}
+	if len(args.files) != 0 {
+		extractFiles(&cpio, args.files)
+	}
+
+	os.Exit(0)
+}
+
+func extractFiles(cpio *gocpio.Cpio, files []string) {
+	for _, file := range files {
+		cpio.ExtractFile(file)
+	}
+}
+
+func parseArgs() CpioArgs {
+	flag.Parse()
+
+	args := flag.Args()
+	if len(args) < 1 {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	return CpioArgs{
+		cpiofile: args[0],
+		files:    args[1:],
 	}
 }
 
