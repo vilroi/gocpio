@@ -13,6 +13,24 @@ const (
 	trailer  string = "TRAILER!!!"
 )
 
+const (
+	FILETYPE_MASK    uint64 = 0170000
+	FILETYPE_SOCKET  uint64 = 0140000
+	FILETYPE_SYMLINK uint64 = 0120000
+	FILETYPE_REGULAR uint64 = 0100000
+	FILETYPE_BLK     uint64 = 0060000
+	FILETYPE_DIR     uint64 = 0040000
+	FILETYPE_CHAR    uint64 = 0020000
+	FILETYPE_FIFO    uint64 = 0010000
+)
+
+const (
+	FILEPERM_SUID   uint64 = 0004000
+	FILEPERM_SGID   uint64 = 0002000
+	FILEPERM_STICKY uint64 = 0001000
+	FILEPERM_PERM   uint64 = 0000777
+)
+
 type Cpio struct {
 	members []CpioMember
 }
@@ -22,7 +40,6 @@ func (cpio Cpio) ListFiles() {
 		if member.name == trailer {
 			break
 		}
-
 		fmt.Println(member.name)
 	}
 }
@@ -57,6 +74,20 @@ func (cpio Cpio) ExtractFile(name string) {
 
 }
 
+func (cpio Cpio) ExtractAllFiles() {
+	for _, member := range cpio.members {
+		member.Dump()
+	}
+}
+
+func (cpio Cpio) Test() {
+	for _, member := range cpio.members {
+		if member.IsRegular() {
+			fmt.Println(member.name)
+		}
+	}
+}
+
 type CpioMember struct {
 	header CpioHeader
 	name   string
@@ -65,6 +96,10 @@ type CpioMember struct {
 
 func (cpiomember CpioMember) Dump() {
 	fpath := cpiomember.name
+	if fpath == "." {
+		return
+	}
+
 	if path := filepath.Dir(fpath); path != "." {
 		err := os.MkdirAll(path, 0755)
 		check(err)
@@ -77,6 +112,34 @@ func (cpiomember CpioMember) Dump() {
 
 	_, err = fd.Write(cpiomember.data)
 	check(err)
+}
+
+func (cpiomember CpioMember) IsSocket() bool {
+	return FILETYPE_SOCKET == (cpiomember.header.Mode & FILETYPE_MASK)
+}
+
+func (cpiomember CpioMember) IsSymlink() bool {
+	return FILETYPE_SYMLINK == (cpiomember.header.Mode & FILETYPE_MASK)
+}
+
+func (cpiomember CpioMember) IsRegular() bool {
+	return FILETYPE_REGULAR == (cpiomember.header.Mode & FILETYPE_MASK)
+}
+
+func (cpiomember CpioMember) IsBlock() bool {
+	return FILETYPE_BLK == (cpiomember.header.Mode & FILETYPE_MASK)
+}
+
+func (cpiomember CpioMember) IsDir() bool {
+	return FILETYPE_DIR == (cpiomember.header.Mode & FILETYPE_MASK)
+}
+
+func (cpiomember CpioMember) IsChar() bool {
+	return FILETYPE_CHAR == (cpiomember.header.Mode & FILETYPE_MASK)
+}
+
+func (cpiomember CpioMember) IsFifo() bool {
+	return FILETYPE_FIFO == (cpiomember.header.Mode & FILETYPE_MASK)
 }
 
 type CpioHeader struct {

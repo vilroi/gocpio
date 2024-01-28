@@ -26,9 +26,12 @@ func main() {
 
 	if len(args.files) != 0 {
 		extractFiles(&cpio, args.files)
+		os.Exit(0)
 	}
+	cpio.Test()
 
-	os.Exit(0)
+	//cpio.ExtractAllFiles()
+
 }
 
 func extractFiles(cpio *gocpio.Cpio, files []string) {

@@ -3,4 +3,4 @@ gocpio
 .*.swp
 *.cpio
 *.out
-
+*tmp*
