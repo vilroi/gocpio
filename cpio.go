@@ -118,7 +118,12 @@ func (cpiomember CpioMember) Dump() {
 
 	filemode := cpiomember.getMode()
 	fd, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, filemode)
-	check(err)
+	if err != nil {
+		createFilePath(filepath)
+		fd, err = os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, filemode)
+		check(err)
+	}
+	defer fd.Close()
 
 	_, err = fd.Write(cpiomember.data)
 	check(err)

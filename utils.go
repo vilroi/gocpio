@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 )
@@ -92,4 +93,12 @@ func sizeof(data any) int {
 	}
 
 	return 0
+}
+
+// create all parent directories contained in the path
+func createFilePath(fullpath string) {
+	path := filepath.Dir(fullpath)
+
+	err := os.MkdirAll(path, 0755)
+	check(err)
 }
