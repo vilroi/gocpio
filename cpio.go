@@ -251,8 +251,7 @@ func ParseCpio(path string) Cpio {
 					break
 				}
 
-				ent.data = make([]byte, last.header.FileSize)
-				_ = copy(ent.data, last.data)
+				ent.data = last.data
 				cpio.members = append(cpio.members, ent)
 			}
 			cpio.members = append(cpio.members, last)
