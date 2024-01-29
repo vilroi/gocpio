@@ -116,7 +116,8 @@ func (cpiomember CpioMember) Dump() {
 		return
 	}
 
-	fd, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, 0644)
+	filemode := cpiomember.getMode()
+	fd, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, filemode)
 	check(err)
 
 	_, err = fd.Write(cpiomember.data)
@@ -125,6 +126,10 @@ func (cpiomember CpioMember) Dump() {
 
 func (cpiomember CpioMember) isTrailer() bool {
 	return cpiomember.name == trailer
+}
+
+func (cpiomember CpioMember) getMode() os.FileMode {
+	return os.FileMode(cpiomember.header.Mode & 0777)
 }
 
 func (cpiomember CpioMember) IsSocket() bool {
@@ -240,7 +245,6 @@ func ParseCpio(path string) Cpio {
 
 				tmp_cpio_slice = append(tmp_cpio_slice, cpio_member)
 				if cpio_member.header.FileSize != 0 {
-					fmt.Println("file size:", cpio_member.header.FileSize)
 					break
 				}
 			}
@@ -248,13 +252,13 @@ func ParseCpio(path string) Cpio {
 			last := tmp_cpio_slice[len(tmp_cpio_slice)-1]
 			for _, ent := range tmp_cpio_slice {
 				if &ent == &last {
+					cpio.members = append(cpio.members, last)
 					break
 				}
 
 				ent.data = last.data
 				cpio.members = append(cpio.members, ent)
 			}
-			cpio.members = append(cpio.members, last)
 			continue
 		}
 		cpio.members = append(cpio.members, cpio_member)
