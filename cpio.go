@@ -3,6 +3,7 @@ package gocpio
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -122,6 +123,10 @@ func (cpiomember CpioMember) Dump() {
 	check(err)
 }
 
+func (cpiomember CpioMember) isTrailer() bool {
+	return cpiomember.name == trailer
+}
+
 func (cpiomember CpioMember) IsSocket() bool {
 	return FILETYPE_SOCKET == (cpiomember.header.Mode & FILETYPE_MASK)
 }
@@ -209,40 +214,66 @@ func (rawheader RawCpioHeader) verifyMagic() bool {
 
 func ParseCpio(path string) Cpio {
 	br := newBinaryReader(path, binary.LittleEndian)
-	info := br.Stat()
-
 	var cpio Cpio
-	for nread := 0; nread < int(info.Size()); {
-		var cpio_member CpioMember
-
-		var raw_header RawCpioHeader
-		nread += br.Read(&raw_header)
-		if !raw_header.verifyMagic() {
-			fmt.Fprintf(os.Stderr, "invalid file format or magic number: %s\n", string(raw_header.Magic[:]))
-			os.Exit(1)
-		}
-
-		header := raw_header.ToCpioHeader()
-		cpio_member.header = header
-
-		namebuf := make([]byte, header.NameSize-1)
-		nread += br.Read(namebuf)
-		cpio_member.name = string(namebuf[:])
-
-		// EOF
-		if cpio_member.name == trailer {
+	for {
+		cpio_member, err := nextCpioEntry(&br)
+		if err == io.EOF {
 			break
 		}
-		br.Skip(0)
+		check(err)
 
-		if header.FileSize != 0 {
-			cpio_member.data = make([]byte, header.FileSize)
-			nread += br.Read(cpio_member.data)
+		if cpio_member.isTrailer() {
+			break
 		}
-		br.Skip(0)
 
-		cpio.Append(cpio_member)
+		// there are multile cpio entries that share the same data
+		// there will be multiple headers, but only one copy of the data
+		/*
+			if cpio_member.header.FileSize == 0 && !cpio_member.IsDir() {
+
+			}
+		*/
+		cpio.members = append(cpio.members, cpio_member)
 	}
 
 	return cpio
+}
+
+// consume the next entry in the cpio file
+// this will move the offset within the BinaryReader forward as a side effect
+func nextCpioEntry(br *BinaryReader) (CpioMember, error) {
+	// extract and parse header
+	var cpio_member CpioMember
+
+	var raw_header RawCpioHeader
+	if _, err := br.Read(&raw_header); err != nil {
+		return CpioMember{}, err
+	}
+
+	if !raw_header.verifyMagic() {
+		fmt.Fprintf(os.Stderr, "invalid file format or magic number: %s\n", string(raw_header.Magic[:]))
+		os.Exit(1)
+	}
+
+	header := raw_header.ToCpioHeader()
+	cpio_member.header = header
+
+	namebuf := make([]byte, header.NameSize-1)
+	if _, err := br.Read(namebuf); err != nil {
+		return CpioMember{}, err
+	}
+	cpio_member.name = string(namebuf[:])
+
+	br.Skip(0)
+
+	// extract data
+	if header.FileSize != 0 {
+		cpio_member.data = make([]byte, header.FileSize)
+		if _, err := br.Read(cpio_member.data); err != nil {
+			return CpioMember{}, err
+		}
+	}
+	br.Skip(0)
+
+	return cpio_member, nil
 }

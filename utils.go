@@ -3,6 +3,7 @@ package gocpio
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"strconv"
@@ -26,14 +27,15 @@ func newBinaryReader(path string, byteorder binary.ByteOrder) BinaryReader {
 /*
 @buf: the caller is responsible for passing a reference to the buffer
 */
-func (binreader *BinaryReader) Read(buf any) int {
+func (binreader *BinaryReader) Read(buf any) (int, error) {
 	err := binary.Read(binreader.fd, binreader.byteorder, buf)
-	check(err)
+	if err != nil {
+		return -1, err
+	}
 
 	nread := int64(sizeof(buf))
-	check(err)
 
-	return int(nread)
+	return int(nread), nil
 }
 
 func (binreader BinaryReader) Stat() os.FileInfo {
@@ -46,7 +48,12 @@ func (binreader BinaryReader) Stat() os.FileInfo {
 func (binreader *BinaryReader) Skip(c byte) {
 	tmp := make([]byte, 1)
 	for {
-		binreader.Read(tmp)
+		_, err := binreader.Read(tmp)
+		if err == io.EOF {
+			break
+		}
+		check(err)
+
 		if tmp[0] != 0 {
 			binreader.SeekCur(-1)
 			break
