@@ -229,8 +229,8 @@ func ParseCpio(path string) Cpio {
 		nread += br.Read(namebuf)
 		cpio_member.name = string(namebuf[:])
 
+		// EOF
 		if cpio_member.name == trailer {
-			cpio.Append(cpio_member)
 			break
 		}
 		br.Skip(0)
