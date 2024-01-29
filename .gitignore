@@ -4,3 +4,4 @@ gocpio
 *.cpio
 *.out
 *tmp*
+*test*

@@ -28,9 +28,8 @@ func main() {
 		extractFiles(&cpio, args.files)
 		os.Exit(0)
 	}
-	cpio.Test()
 
-	//cpio.ExtractAllFiles()
+	cpio.ExtractAllFiles()
 
 }
 

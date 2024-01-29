@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -95,19 +94,28 @@ type CpioMember struct {
 }
 
 func (cpiomember CpioMember) Dump() {
-	fpath := cpiomember.name
-	if fpath == "." {
+	filepath := cpiomember.name
+	if filepath == "." {
 		return
 	}
 
-	if path := filepath.Dir(fpath); path != "." {
-		err := os.MkdirAll(path, 0755)
-		check(err)
+	filepath = "./" + filepath
 
-		fpath = "./" + fpath
+	if cpiomember.IsDir() {
+		err := os.MkdirAll(filepath, 0755)
+		check(err)
+		return
 	}
 
-	fd, err := os.OpenFile(fpath, os.O_RDWR|os.O_CREATE, 0644)
+	if cpiomember.IsSymlink() {
+		target := string(cpiomember.data[:])
+
+		err := os.Symlink(target, cpiomember.name)
+		check(err)
+		return
+	}
+
+	fd, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, 0644)
 	check(err)
 
 	_, err = fd.Write(cpiomember.data)
