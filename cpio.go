@@ -212,6 +212,7 @@ func (rawheader RawCpioHeader) verifyMagic() bool {
 	return string(rawheader.Magic[:]) == magicval
 }
 
+// TODO: Code duplicate, and also very ugly Refactor later.
 func ParseCpio(path string) Cpio {
 	br := newBinaryReader(path, binary.LittleEndian)
 	var cpio Cpio
@@ -228,11 +229,35 @@ func ParseCpio(path string) Cpio {
 
 		// there are multile cpio entries that share the same data
 		// there will be multiple headers, but only one copy of the data
-		/*
-			if cpio_member.header.FileSize == 0 && !cpio_member.IsDir() {
+		if cpio_member.header.FileSize == 0 && !cpio_member.IsDir() {
+			tmp_cpio_slice := []CpioMember{cpio_member}
+			for {
+				cpio_member, err := nextCpioEntry(&br)
+				if err == io.EOF {
+					break
+				}
+				check(err)
 
+				tmp_cpio_slice = append(tmp_cpio_slice, cpio_member)
+				if cpio_member.header.FileSize != 0 {
+					fmt.Println("file size:", cpio_member.header.FileSize)
+					break
+				}
 			}
-		*/
+
+			last := tmp_cpio_slice[len(tmp_cpio_slice)-1]
+			for _, ent := range tmp_cpio_slice {
+				if &ent == &last {
+					break
+				}
+
+				ent.data = make([]byte, last.header.FileSize)
+				_ = copy(ent.data, last.data)
+				cpio.members = append(cpio.members, ent)
+			}
+			cpio.members = append(cpio.members, last)
+			continue
+		}
 		cpio.members = append(cpio.members, cpio_member)
 	}
 
